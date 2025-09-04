@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Users, Clock } from 'lucide-react';
-import { getWaitlistStats } from '../utils/emailStorage';
+import { getWaitlistStats, subscribeToWaitlistUpdates } from '../utils/emailStorage';
 
 interface PersistentWaitlistProps {
   onOpenModal: () => void;
@@ -24,10 +24,22 @@ const PersistentWaitlist: React.FC<PersistentWaitlistProps> = ({ onOpenModal }) 
       setIsVisible(true);
     }, 3000);
 
-    // Update stats
-    setStats(getWaitlistStats());
+    // Load initial stats
+    const loadStats = async () => {
+      const initialStats = await getWaitlistStats();
+      setStats(initialStats);
+    };
+    loadStats();
 
-    return () => clearTimeout(timer);
+    // Subscribe to real-time updates
+    const subscription = subscribeToWaitlistUpdates((count) => {
+      setStats(prev => ({ ...prev, totalUsers: count }));
+    });
+
+    return () => {
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

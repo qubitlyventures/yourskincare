@@ -1,4 +1,6 @@
 // Email storage utility for waitlist management
+import { supabase } from './supabase';
+
 export interface WaitlistUser {
   id: string;
   name: string;
@@ -10,80 +12,81 @@ export interface WaitlistUser {
   source: string;
 }
 
-// Local storage key
-const WAITLIST_STORAGE_KEY = 'glow_ai_waitlist';
+// Convert database row to WaitlistUser interface
+const mapDbRowToUser = (row: any): WaitlistUser => ({
+  id: row.id,
+  name: row.name || '',
+  email: row.email,
+  country: row.country || '',
+  skinType: row.skin_type || '',
+  concerns: row.concerns || [],
+  signupDate: row.signup_date,
+  source: row.source || 'website'
+});
 
-// Get all waitlist users from localStorage
-export const getWaitlistUsers = (): WaitlistUser[] => {
-  if (typeof window === 'undefined') return [];
-  
+// Get all waitlist users from Supabase
+export const getWaitlistUsers = async (): Promise<WaitlistUser[]> => {
   try {
-    const stored = localStorage.getItem(WAITLIST_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const { data, error } = await supabase
+      .from('waitlist_users')
+      .select('*')
+      .order('signup_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching waitlist users:', error);
+      return [];
+    }
+
+    return data?.map(mapDbRowToUser) || [];
   } catch (error) {
-    console.error('Error reading waitlist data:', error);
+    console.error('Error fetching waitlist users:', error);
     return [];
   }
 };
 
 // Add user to waitlist
-export const addToWaitlist = (userData: Omit<WaitlistUser, 'id' | 'signupDate'>): WaitlistUser => {
-  const user: WaitlistUser = {
-    ...userData,
-    id: generateUserId(),
-    signupDate: new Date().toISOString(),
-  };
-
-  const existingUsers = getWaitlistUsers();
-  
-  // Check if email already exists
-  if (existingUsers.some(existingUser => existingUser.email === user.email)) {
-    throw new Error('Email already registered in waitlist');
-  }
-
-  const updatedUsers = [...existingUsers, user];
-  
+export const addToWaitlist = async (userData: Omit<WaitlistUser, 'id' | 'signupDate'>): Promise<WaitlistUser> => {
   try {
-    localStorage.setItem(WAITLIST_STORAGE_KEY, JSON.stringify(updatedUsers));
-    
-    // Also send to external service (you can integrate with your backend here)
-    sendToExternalService(user);
-    
-    return user;
-  } catch (error) {
+    // Check if email already exists
+    const { data: existing } = await supabase
+      .from('waitlist_users')
+      .select('email')
+      .eq('email', userData.email)
+      .single();
+
+    if (existing) {
+      throw new Error('Email already registered in waitlist');
+    }
+
+    // Insert new user
+    const { data, error } = await supabase
+      .from('waitlist_users')
+      .insert({
+        name: userData.name,
+        email: userData.email,
+        country: userData.country,
+        skin_type: userData.skinType,
+        concerns: userData.concerns,
+        source: userData.source
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw new Error('Failed to save to waitlist');
+    }
+
+    return mapDbRowToUser(data);
+  } catch (error: any) {
     console.error('Error saving to waitlist:', error);
-    throw new Error('Failed to save to waitlist');
-  }
-};
-
-// Generate unique user ID
-const generateUserId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
-
-// Send to external service (integrate with your backend/email service)
-const sendToExternalService = async (user: WaitlistUser) => {
-  try {
-    // Example: Send to your backend API
-    await fetch('/api/waitlist', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(user),
-    });
-    
-    // Example: Send to email service (like Mailchimp, ConvertKit, etc.)
-    // await sendToEmailService(user);
-    
-  } catch (error) {
-    console.log('External service not available, data saved locally:', error);
+    throw error;
   }
 };
 
 // Export waitlist data (for admin use)
-export const exportWaitlistData = (): string => {
-  const users = getWaitlistUsers();
+export const exportWaitlistData = async (): Promise<string> => {
+  const users = await getWaitlistUsers();
   const csvHeader = 'Name,Email,Country,Skin Type,Concerns,Signup Date,Source\n';
   const csvData = users.map(user => 
     `"${user.name}","${user.email}","${user.country}","${user.skinType}","${user.concerns.join(';')}","${user.signupDate}","${user.source}"`
@@ -92,38 +95,101 @@ export const exportWaitlistData = (): string => {
   return csvHeader + csvData;
 };
 
-// Get waitlist statistics
-export const getWaitlistStats = () => {
-  const users = getWaitlistUsers();
-  
-  const stats = {
-    totalUsers: users.length,
-    byCountry: {} as Record<string, number>,
-    bySkinType: {} as Record<string, number>,
-    byConcerns: {} as Record<string, number>,
-    bySource: {} as Record<string, number>,
-    recentSignups: users.filter(user => {
-      const signupDate = new Date(user.signupDate);
+// Get waitlist statistics with real-time updates
+export const getWaitlistStats = async () => {
+  try {
+    const { data: users, error } = await supabase
+      .from('waitlist_users')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching stats:', error);
+      return {
+        totalUsers: 0,
+        byCountry: {},
+        bySkinType: {},
+        byConcerns: {},
+        bySource: {},
+        recentSignups: 0
+      };
+    }
+
+    const stats = {
+      totalUsers: users?.length || 0,
+      byCountry: {} as Record<string, number>,
+      bySkinType: {} as Record<string, number>,
+      byConcerns: {} as Record<string, number>,
+      bySource: {} as Record<string, number>,
+      recentSignups: 0
+    };
+
+    if (users) {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      return signupDate > weekAgo;
-    }).length,
-  };
+      
+      users.forEach(user => {
+        // Count recent signups
+        if (new Date(user.signup_date) > weekAgo) {
+          stats.recentSignups++;
+        }
 
-  users.forEach(user => {
-    // Count by country
-    stats.byCountry[user.country] = (stats.byCountry[user.country] || 0) + 1;
-    
-    // Count by skin type
-    stats.bySkinType[user.skinType] = (stats.bySkinType[user.skinType] || 0) + 1;
-    
-    // Count by source
-    stats.bySource[user.source] = (stats.bySource[user.source] || 0) + 1;
-    
-    // Count by concerns
-    user.concerns.forEach(concern => {
-      stats.byConcerns[concern] = (stats.byConcerns[concern] || 0) + 1;
-    });
-  });
+        // Count by country
+        if (user.country) {
+          stats.byCountry[user.country] = (stats.byCountry[user.country] || 0) + 1;
+        }
+        
+        // Count by skin type
+        if (user.skin_type) {
+          stats.bySkinType[user.skin_type] = (stats.bySkinType[user.skin_type] || 0) + 1;
+        }
+        
+        // Count by source
+        if (user.source) {
+          stats.bySource[user.source] = (stats.bySource[user.source] || 0) + 1;
+        }
+        
+        // Count by concerns
+        if (user.concerns) {
+          user.concerns.forEach((concern: string) => {
+            stats.byConcerns[concern] = (stats.byConcerns[concern] || 0) + 1;
+          });
+        }
+      });
+    }
 
-  return stats;
+    return stats;
+  } catch (error) {
+    console.error('Error calculating stats:', error);
+    return {
+      totalUsers: 0,
+      byCountry: {},
+      bySkinType: {},
+      byConcerns: {},
+      bySource: {},
+      recentSignups: 0
+    };
+  }
+};
+
+// Subscribe to real-time updates for waitlist count
+export const subscribeToWaitlistUpdates = (callback: (count: number) => void) => {
+  const subscription = supabase
+    .channel('waitlist_changes')
+    .on('postgres_changes', 
+      { 
+        event: '*', 
+        schema: 'public', 
+        table: 'waitlist_users' 
+      }, 
+      async () => {
+        // Get updated count
+        const { count } = await supabase
+          .from('waitlist_users')
+          .select('*', { count: 'exact', head: true });
+        
+        callback(count || 0);
+      }
+    )
+    .subscribe();
+
+  return subscription;
 };

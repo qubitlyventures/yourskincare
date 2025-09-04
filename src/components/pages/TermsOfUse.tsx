@@ -13,9 +13,14 @@ const TermsOfUse: React.FC<TermsOfUseProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-8">
-          {/* Header */}
-          <div className="flex items-center">
+        <div className="flex items-center justify-between mb-8">
             <h1 className="text-2xl font-bold text-gray-900">Your Skin Care Application</h1>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2"
+            >
+              <X size={24} />
+            </button>
           </div>
 
           {/* Content */}

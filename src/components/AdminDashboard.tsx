@@ -2,25 +2,78 @@ import React, { useState, useEffect } from 'react';
 import { Download, Users, TrendingUp, Mail, Globe, Calendar, Eye, BarChart3 } from 'lucide-react';
 import { getWaitlistStats, exportWaitlistData, getWaitlistUsers } from '../utils/emailStorage';
 
+// Define proper types for better TypeScript support
+interface StatsData {
+  totalUsers: number;
+  byCountry: Record<string, number>;
+  bySkinType: Record<string, number>;
+  byConcerns: Record<string, number>;
+  bySource: Record<string, number>;
+  recentSignups: number;
+}
+
 const AdminDashboard: React.FC = () => {
-  const [stats, setStats] = useState<any>({});
+  const [stats, setStats] = useState<StatsData>({
+    totalUsers: 0,
+    byCountry: {},
+    bySkinType: {},
+    byConcerns: {},
+    bySource: {},
+    recentSignups: 0
+  });
   const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setStats(getWaitlistStats());
-    setUsers(getWaitlistUsers());
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [statsData, usersData] = await Promise.all([
+          getWaitlistStats(),
+          getWaitlistUsers()
+        ]);
+        setStats(statsData);
+        setUsers(usersData);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
-  const handleExport = () => {
-    const csvData = exportWaitlistData();
-    const blob = new Blob([csvData], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `glow-ai-waitlist-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    try {
+      const csvData = await exportWaitlistData();
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `waitlist-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+    }
   };
+
+  // Helper function to calculate percentage safely
+  const calculatePercentage = (count: number, total: number): number => {
+    return total > 0 ? Math.round((count / total) * 100) : 0;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -98,11 +151,11 @@ const AdminDashboard: React.FC = () => {
                     <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-gradient-to-r from-amber-500 to-rose-500 h-2 rounded-full"
-                        style={{ width: `${((count as number) / stats.totalUsers) * 100}%` }}
+                        style={{ width: `${calculatePercentage(count, stats.totalUsers)}%` }}
                       ></div>
                     </div>
                     <span className="text-sm font-medium text-gray-900 min-w-[3rem]">
-                      {count} ({Math.round(((count as number) / stats.totalUsers) * 100)}%)
+                      {count} ({calculatePercentage(count, stats.totalUsers)}%)
                     </span>
                   </div>
                 </div>
@@ -118,7 +171,7 @@ const AdminDashboard: React.FC = () => {
             </h3>
             <div className="space-y-3">
               {Object.entries(stats.byCountry || {})
-                .sort(([,a], [,b]) => (b as number) - (a as number))
+                .sort(([,a], [,b]) => b - a)
                 .slice(0, 5)
                 .map(([country, count]) => (
                   <div key={country} className="flex items-center justify-between">
@@ -127,11 +180,11 @@ const AdminDashboard: React.FC = () => {
                       <div className="w-32 bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                          style={{ width: `${((count as number) / stats.totalUsers) * 100}%` }}
+                          style={{ width: `${calculatePercentage(count, stats.totalUsers)}%` }}
                         ></div>
                       </div>
                       <span className="text-sm font-medium text-gray-900 min-w-[3rem]">
-                        {count} ({Math.round(((count as number) / stats.totalUsers) * 100)}%)
+                        {count} ({calculatePercentage(count, stats.totalUsers)}%)
                       </span>
                     </div>
                   </div>
@@ -170,12 +223,12 @@ const AdminDashboard: React.FC = () => {
               <tbody>
                 {users.slice(0, 10).map((user) => (
                   <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900">{user.name}</td>
+                    <td className="py-3 px-4 text-gray-900">{user.name || 'N/A'}</td>
                     <td className="py-3 px-4 text-gray-600">{user.email}</td>
-                    <td className="py-3 px-4 text-gray-600">{user.country}</td>
+                    <td className="py-3 px-4 text-gray-600">{user.country || 'N/A'}</td>
                     <td className="py-3 px-4">
                       <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {user.skinType}
+                        {user.skinType || 'N/A'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-600">
@@ -193,6 +246,3 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
-```
-
-
