@@ -12,6 +12,13 @@ const PersistentWaitlist: React.FC<PersistentWaitlistProps> = ({ onOpenModal }) 
   const [stats, setStats] = useState({ totalUsers: 0 });
 
   useEffect(() => {
+    // 🎯 NEW: Check if user has already joined
+    const userJoined = localStorage.getItem('glow_ai_user_joined');
+    if (userJoined) {
+      setIsDismissed(true);
+      return;
+    }
+
     // Check if previously dismissed
     const dismissed = localStorage.getItem('glow_ai_persistent_dismissed');
     if (dismissed) {

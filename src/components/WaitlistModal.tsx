@@ -36,11 +36,14 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
         throw new Error('Please enter your email address');
       }
 
-      // Save to waitlist
+      // Save to waitlist (now async)
       await addToWaitlist(formData);
       
       // Track analytics
       trackWaitlistSignup(formData);
+      
+      // 🎯 NEW: Mark user as successfully joined
+      localStorage.setItem('glow_ai_user_joined', 'true');
       
       setIsSubmitted(true);
       
