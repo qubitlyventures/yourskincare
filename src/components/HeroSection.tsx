@@ -49,46 +49,68 @@ const HeroSection: React.FC = () => {
   return (
     <>
       {/* Hero Section - Sliding Images */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Image Carousel */}
+      <section id="home" className="min-h-screen relative overflow-hidden bg-black">
+        {/* Background Images with Transition */}
         <div className="absolute inset-0">
           {images.map((image, index) => (
-            <div
+            <img 
               key={index}
-              className={`absolute inset-0 transition-opacity duration-1000 ${
+              src={image.src}
+              alt={image.alt}
+              className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-1000 ${
                 index === currentImageIndex ? 'opacity-100' : 'opacity-0'
               }`}
-            >
-              <img
-                src={image.src}
-                alt={image.alt}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/40"></div>
-            </div>
+              style={{ objectPosition: 'center 42%' }}
+              loading={index === 0 ? "eager" : "lazy"}
+            />
           ))}
+          {/* Overlay gradient */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-transparent"></div>
+          {/* Golden light overlay */}
+          <div className="absolute inset-0"
+               style={{
+                 background: `
+                   radial-gradient(circle at 30% 40%, rgba(251, 191, 36, 0.3) 0%, transparent 50%),
+                   linear-gradient(45deg, transparent 0%, rgba(251, 191, 36, 0.1) 30%, transparent 70%)
+                 `
+               }}>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 text-center px-6 sm:px-8 lg:px-12 max-w-6xl mx-auto">
-          <div className="space-y-8">
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-white leading-tight">
-              <span className="block">Your Personal</span>
-              <span className="block bg-gradient-to-r from-amber-400 to-rose-400 bg-clip-text text-transparent">
-                Skincare Expert
+        {/* Image Indicators */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+          {images.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentImageIndex(index)}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                index === currentImageIndex 
+                  ? 'bg-amber-400 scale-125' 
+                  : 'bg-white/50 hover:bg-white/70'
+              }`}
+            />
+          ))}
+        </div>
+        
+        {/* Content Overlay */}
+        <div className="absolute inset-0 flex items-center justify-center lg:justify-start lg:pl-32">
+          <div className="text-white text-center lg:text-left max-w-2xl px-8">
+            <div className="mb-6">
+              <span className="inline-block bg-gradient-to-r from-amber-400 to-rose-400 text-black px-6 py-3 rounded-full text-sm font-bold tracking-wide mb-8">
+                AI-POWERED SKINCARE
               </span>
+            </div>
+            <h1 className="text-6xl lg:text-8xl font-bold mb-8 leading-tight">
+              <span className="bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">
+              Real conversation
+              </span>
+              <br />
+              <span className="text-white">Truly skin care</span>
             </h1>
-            <p className="text-xl sm:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl lg:text-2xl text-gray-200 mb-12 leading-relaxed max-w-xl">
             Join the waitlist for the first conversational skincare app that remembers the details and updates routines automatically as life and skin change
             </p>
-
-            {/* Floating Avatars */}
-            <div className="flex justify-center mb-8">
-              <FloatingAvatars />
-            </div>
-
-            {/* Single Join Waitlist Button */}
-            <div className="flex justify-center">
+            <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start">
               <button 
                 onClick={() => setIsWaitlistOpen(true)}
                 className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white px-10 py-5 font-bold text-lg tracking-wider transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center justify-center gap-3 rounded-full"
@@ -97,33 +119,104 @@ const HeroSection: React.FC = () => {
                 JOIN WAITLIST
               </button>
             </div>
+            
+            {/* Floating Avatars - Below the button */}
+            <div className="flex justify-center lg:justify-start pt-6">
+              <FloatingAvatars />
+            </div>
           </div>
         </div>
 
         <WaitlistModal isOpen={isWaitlistOpen} onClose={() => setIsWaitlistOpen(false)} />
       </section>
 
-      {/* Video Demo Section - keeping this but removing the button reference */}
-      <section id="video-demo" className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-            See How It Works
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Experience the future of personalized skincare
-          </p>
-          <div className="relative aspect-video bg-gradient-to-br from-amber-100 to-rose-100 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 mx-auto">
-                  <Sparkles size={32} className="text-amber-600" />
+      {/* Video Demo Section */}
+      <section id="video-demo" className="relative min-h-screen overflow-hidden">
+        {/* Background Video */}
+        <div className="absolute inset-0">
+          <video
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+          >
+            <source src="/skincare-demo-video.mp4" type="video/mp4" />
+          </video>
+          {/* Video overlay */}
+          <div className="absolute inset-0 bg-black/30"></div>
+        </div>
+
+        {/* Content over video */}
+        <div className="relative z-10 flex items-center justify-center min-h-screen text-white text-center px-8">
+          <div className="max-w-4xl">
+            <h2 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
+              AI Skincare
+              <br />
+              <span className="bg-gradient-to-r from-amber-400 to-rose-400 bg-clip-text text-transparent">
+                Analysis
+              </span>
+            </h2>
+            <p className="text-xl lg:text-2xl text-gray-200 mb-12 leading-relaxed max-w-3xl mx-auto">
+            Reads skin in real time, learns patterns, and turns insights into routines. Personal to lifestyle, climate, and UVA/UVB exposure.
+            </p>
+            
+            {/* Feature highlights */}
+            {/* Feature highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 max-w-6xl mx-auto">
+              <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 hover:bg-black/80 transition-all duration-300 border border-white/10">
+                <div className="flex items-start gap-4">
+                  <div className="text-amber-400 flex-shrink-0">
+                    <Sparkles size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold mb-2 text-white">Instant Skin Analysis</h3>
+                    <p className="text-gray-200 text-sm">Instant scan reveals your top skin priorities and aging accelerators factors to reach your skin's visible beauty and vitality.</p>
+                  </div>
                 </div>
-                <p className="text-gray-700 font-medium">Coming Soon</p>
+              </div>
+              
+              <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 hover:bg-black/80 transition-all duration-300 border border-white/10">
+                <div className="flex items-start gap-4">
+                  <div className="text-amber-400 flex-shrink-0">
+                    <Sparkles size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold mb-2 text-white">Your Skin Companion</h3>
+                    <p className="text-gray-200 text-sm">Your 24/7 skin companion that understands your skin patterns and progress better than anyone</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 hover:bg-black/80 transition-all duration-300 border border-white/10">
+                <div className="flex items-start gap-4">
+                  <div className="text-amber-400 flex-shrink-0">
+                    <Sparkles size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold mb-2 text-white">Personalized Care</h3>
+                    <p className="text-gray-200 text-sm">Custom routines tuned to skin type, climate, lifestyle, and UVA/UVB exposure.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 hover:bg-black/80 transition-all duration-300 border border-white/10">
+                <div className="flex items-start gap-4">
+                  <div className="text-amber-400 flex-shrink-0">
+                    <Sparkles size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold mb-2 text-white">Get the best product fit for your skin</h3>
+                    <p className="text-gray-200 text-sm">Check cosmetics' fit with no brand affiliation</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+
+          </div>   
+        </div>     
+      </section>   
     </>
   );
 };
